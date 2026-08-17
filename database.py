@@ -117,3 +117,38 @@ def save_user(user):
 
     cur.close()
     conn.close()
+def create_payment(telegram_id, plan_name, amount):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Foydalanuvchida ochiq ariza bor-yo‘qligini tekshiramiz
+    cur.execute("""
+        SELECT id
+        FROM payments
+        WHERE telegram_id = %s
+        AND status = 'pending'
+        LIMIT 1;
+    """, (telegram_id,))
+
+    existing = cur.fetchone()
+
+    if existing:
+        cur.close()
+        conn.close()
+        return False
+
+    cur.execute("""
+        INSERT INTO payments
+        (telegram_id, plan_name, amount, status)
+        VALUES (%s, %s, %s, 'pending')
+        RETURNING id;
+    """, (telegram_id, plan_name, amount))
+
+    payment_id = cur.fetchone()[0]
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    return payment_id
