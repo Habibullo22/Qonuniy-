@@ -60,7 +60,7 @@ def init_database():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS indexed_profiles (
             id SERIAL PRIMARY KEY,
-            telegram_id BIGINT,
+            telegram_id BIGINT UNIQUE NOT NULL,
             username TEXT,
             first_name TEXT,
             last_name TEXT,
@@ -74,7 +74,7 @@ def init_database():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS indexed_messages (
             id SERIAL PRIMARY KEY,
-            telegram_id BIGINT,
+            telegram_id BIGINT NOT NULL,
             chat_id BIGINT,
             chat_title TEXT,
             message_id BIGINT,
@@ -82,6 +82,22 @@ def init_database():
             message_date TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+    """)
+
+    # 🔎 Qidiruv tezligi uchun indexlar
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_profiles_username
+        ON indexed_profiles(username);
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_messages_telegram_id
+        ON indexed_messages(telegram_id);
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_search_logs_user
+        ON search_logs(telegram_id);
     """)
 
     conn.commit()
@@ -98,7 +114,12 @@ def save_user(user):
 
     cur.execute("""
         INSERT INTO users
-        (telegram_id, username, first_name, last_name)
+        (
+            telegram_id,
+            username,
+            first_name,
+            last_name
+        )
         VALUES (%s, %s, %s, %s)
 
         ON CONFLICT (telegram_id)
@@ -117,11 +138,14 @@ def save_user(user):
 
     cur.close()
     conn.close()
+
+
 def create_payment(telegram_id, plan_name, amount):
+
     conn = get_connection()
     cur = conn.cursor()
 
-    # Foydalanuvchida ochiq ariza bor-yo‘qligini tekshiramiz
+    # Pending ariza borligini tekshirish
     cur.execute("""
         SELECT id
         FROM payments
@@ -139,10 +163,19 @@ def create_payment(telegram_id, plan_name, amount):
 
     cur.execute("""
         INSERT INTO payments
-        (telegram_id, plan_name, amount, status)
+        (
+            telegram_id,
+            plan_name,
+            amount,
+            status
+        )
         VALUES (%s, %s, %s, 'pending')
         RETURNING id;
-    """, (telegram_id, plan_name, amount))
+    """, (
+        telegram_id,
+        plan_name,
+        amount
+    ))
 
     payment_id = cur.fetchone()[0]
 
