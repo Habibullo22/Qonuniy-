@@ -6,12 +6,15 @@ import telebot
 from telebot import types
 
 from config import BOT_TOKEN, ADMIN_ID
+
 from database import (
     init_database,
     save_user,
     create_payment,
     get_connection,
 )
+
+from collector import index_profile
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -251,11 +254,11 @@ def save_search_log(telegram_id, query):
 # ============================================================
 # 🚀 START
 # ============================================================
-
 @bot.message_handler(commands=["start"])
 def start(message):
 
     save_user(message.from_user)
+    index_profile(message.from_user)
 
     markup = types.InlineKeyboardMarkup(row_width=1)
 
